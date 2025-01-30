@@ -1,6 +1,6 @@
 import numpy as np
 import itertools
-from mbi import Dataset, LinearMeasurement, estimation, callbacks, junction_tree
+from mbi import Dataset, LinearMeasurement, estimation, marginal_oracles, callbacks, junction_tree
 from scipy.special import softmax
 from cdp2adp import cdp_rho
 import argparse
@@ -31,6 +31,8 @@ def worst_approximated(
     :param: workload: The list of candidates to consider in the exponential mechanism
     :param eps: the privacy budget to use for this step.
     """
+    print("Choosing worst approximated with:")
+    print("\tRemaining privacy budget: ", eps)
     errors = np.array([])
     for cl in workload:
         bias = est.domain.size(cl) if penalty else 0
@@ -103,17 +105,19 @@ def mwem_pgm(
     workload_answers = {cl: data.project(cl).datavector() for cl in workload}
 
     measurements = []
-    est = estimation.mirror_descent(domain, measurements, known_total=total)
+    est = estimation.mirror_descent(domain, measurements, 
+                                    marginal_oracle=marginal_oracles.message_passing_stable,
+                                    known_total=total)
     #import IPython; IPython.embed()
     cliques = []
     for i in range(1, rounds + 1):
         # [New] Only consider candidates that keep the model sufficiently small
         candidates = [
-            cl for cl in workload if hypothetical_model_size(domain, cliques + [cl]) <= maxsize_mb * i / rounds
+            cl for cl in workload
         ]
         ax = worst_approximated(workload_answers, est, candidates, exp_eps)
-        model_size = hypothetical_model_size(domain, cliques)
-        print("Round", i, "Selected", ax, "Model Size (MB)", model_size)
+        #model_size = hypothetical_model_size(domain, cliques)
+        print("Round", i, "Selected", ax)
         n = domain.size(ax)
         x = data.project(ax).datavector()
         if noise == "laplace":
@@ -126,6 +130,7 @@ def mwem_pgm(
             measurements,
             known_total=total,
             potentials=est.potentials,
+            marginal_oracle=marginal_oracles.message_passing_stable,
             callback_fn = callbacks.default(measurements, data)
         )
         cliques.append(ax)

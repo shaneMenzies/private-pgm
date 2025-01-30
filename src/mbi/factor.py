@@ -141,8 +141,17 @@ class Factor:
         """
         return self._binaryop(jnp.multiply, other)
 
+    @jax.jit
+    def add_factor(self, other: "Factor") -> "Factor":
+        newdom = self.domain.merge(other.domain)
+        factor1 = self.expand(newdom)
+        factor2 = other.expand(newdom)
+        return Factor(newdom, jnp.add(factor1.values, factor2.values))
+
     def __add__(self, other: "Factor" | chex.Numeric) -> "Factor":
-        return self._binaryop(jnp.add, other)
+        if isinstance(other, chex.Numeric) and jnp.ndim(other) == 0:
+            other = Factor(Domain([], []), other)
+        return self.add_factor(other)
 
     def __radd__(self, other: chex.Numeric) -> "Factor":
         return self + other

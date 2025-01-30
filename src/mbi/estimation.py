@@ -166,7 +166,8 @@ def mirror_descent(
     mu, state = marginal_oracle(potentials, known_total, state=None)
     for t in range(iters):
         potentials, loss, alpha, mu, state = update(potentials, alpha, state)
-        callback_fn(mu)
+        if callback_fn(mu):
+            break;
 
     marginals, _ = marginal_oracle(potentials, known_total, state)
     return GraphicalModel(potentials, marginals, known_total)

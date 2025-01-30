@@ -24,6 +24,11 @@ from mbi.marginal_loss import clique_mapping
 import functools
 import collections
 
+jax.config.update("jax_compilation_cache_dir", "/tmp/jax_cache")
+jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
+jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
+jax.config.update("jax_persistent_cache_enable_xla_caches", "xla_gpu_per_fusion_autotune_cache_dir")
+
 _EINSUM_LETTERS = list(string.ascii_lowercase) + list(string.ascii_uppercase)
 
 
@@ -42,11 +47,16 @@ def sum_product(factors: list[Factor], dom: Domain) -> Factor:
             * S = union of domains of F_i
     """
 
+    print("Computing sum of products of factors:", factors, " over domain: ", dom)
     attrs = sorted(set.union(*[set(f.domain) for f in factors]).union(set(dom)))
     mapping = dict(zip(attrs, _EINSUM_LETTERS))
+    print("Mapping from attributes to einsum letters:")
+    print(mapping)
     convert = lambda d: "".join(mapping[a] for a in d.attributes)
     formula = ",".join(convert(f.domain) for f in factors) + "->" + convert(dom)
-    #print(jnp.einsum_path(formula, *[f.values for f in factors]))
+    print("Formula: ", formula)
+    print(len(factors), " Factors")
+    print(jnp.einsum_path(formula, *[f.values for f in factors]))
     values = jnp.einsum(
         formula,
         *[f.values for f in factors],
@@ -230,7 +240,6 @@ def message_passing_fast(potentials: CliqueVector, total: float = 1) -> CliqueVe
             )
 
     return CliqueVector(potentials.domain, cliques, beliefs)
-
 
 def variable_elimination(
     potentials: CliqueVector, clique: tuple[str, ...], total: float = 1

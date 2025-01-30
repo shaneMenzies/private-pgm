@@ -11,3 +11,5 @@ optax
 pytest
 pytype
 parameterized
+etils
+importlib-resources

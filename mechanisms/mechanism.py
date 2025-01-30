@@ -73,6 +73,8 @@ class Mechanism:
     def exponential_mechanism(
         self, qualities, epsilon, sensitivity=1.0, base_measure=None
     ):
+        print("Performing exponential mechanism with: ")
+        print("\tEpsilon: ", epsilon)
         if isinstance(qualities, dict):
             # import pandas as pd
             # print(pd.Series(list(qualities.values()), list(qualities.keys())).sort_values().tail())
@@ -85,6 +87,7 @@ class Mechanism:
             keys = np.arange(qualities.size)
 
         """ Sample a candidate from the permute-and-flip mechanism """
+        print("\tSensitivity:", sensitivity)
         q = qualities - qualities.max()
         if base_measure is None:
             p = softmax(0.5 * epsilon / sensitivity * q)

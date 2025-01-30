@@ -7,12 +7,14 @@ for debugging, but keeping the default value of 80 for any official comparisons 
 Note that we assume in this file that the data has been appropriately preprocessed so that there are no large-cardinality categorical attributes.  If there are, we recommend using something like "compress_domain" from mst.py.  Since our paper evaluated already-preprocessed datastes, we did not implement that here for simplicity.
 """
 
-import numpy as np
+import jax.numpy as np
 import itertools
 from mbi import (
+    callbacks,
     Dataset,
     Domain,
     estimation,
+    marginal_oracles,
     junction_tree,
     LinearMeasurement,
     LinearMeasurement,
@@ -65,11 +67,11 @@ def filter_candidates(candidates, model, size_limit):
     ans = {}
     free_cliques = downward_closure(model.cliques)
     for cl in candidates:
-        cond1 = (
-            hypothetical_model_size(model.domain, model.cliques + [cl]) <= size_limit
-        )
+        # cond1 = (
+        #    hypothetical_model_size(model.domain, model.cliques + [cl]) <= size_limit
+        #)
         cond2 = cl in free_cliques
-        if cond1 or cond2:
+        if cond2:
             ans[cl] = candidates[cl]
     return ans
 
@@ -133,7 +135,9 @@ class AIM(Mechanism):
         zeros = self.structural_zeros
         # NOTE: Haven't incorproated structural zeros back yet after refactoring
         model = estimation.mirror_descent(
-                data.domain, measurements, iters=self.max_iters, callback_fn=lambda *_: None
+                data.domain, measurements, iters=self.max_iters, 
+                marginal_oracle=marginal_oracles.message_passing_stable,
+                callback_fn=callbacks.default(measurements, data)
         )
 
         t = 0
@@ -167,7 +171,10 @@ class AIM(Mechanism):
             pcliques = list(set(M.clique for M in measurements))
             potentials = model.potentials.expand(pcliques)
             model = estimation.mirror_descent(
-                    data.domain, measurements, iters=self.max_iters, potentials=potentials, callback_fn=lambda *_: None
+                    data.domain, measurements, iters=self.max_iters, 
+                    marginal_oracle=marginal_oracles.message_passing_stable,
+                    potentials=potentials, 
+                    callback_fn=callbacks.default(measurements, data)
             )
             w = model.project(cl).datavector()
             # print('Selected',cl,'Size',n,'Budget Used',rho_used/self.rho)
@@ -178,7 +185,8 @@ class AIM(Mechanism):
 
         print("Generating Data...")
         model = estimation.mirror_descent(
-            data.domain, measurements, iters=self.max_iters
+            data.domain, measurements, iters=self.max_iters,
+            marginal_oracle=marginal_oracles.message_passing_stable
         )
         synth = model.synthetic_data(rows=num_synth_rows)
 
@@ -261,4 +269,4 @@ if __name__ == "__main__":
         Y = synth.project(proj).datavector()
         e = 0.5 * wgt * np.linalg.norm(X / X.sum() - Y / Y.sum(), 1)
         errors.append(e)
-    print("Average Error: ", np.mean(errors))
+    print("Average Error: ", np.mean(np.asarray(errors)))

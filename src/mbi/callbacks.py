@@ -1,8 +1,10 @@
 import attr
+from collections import deque
 import jax
 from mbi import LinearMeasurement, Dataset, CliqueVector
 from mbi import marginal_loss
 import pandas as pd
+import chex
 
 
 def _pad(string: str, length: int):
@@ -17,21 +19,44 @@ def _pad(string: str, length: int):
 class Callback:
     loss_fns: dict[str, marginal_loss.MarginalLossFn]
     frequency: int = 50
+    history_len: int = 25
+    margin_percent: float = 0.00001
+    history: deque = deque()
+
     # Internal state
     _step: int = 0
     _logs: list = attr.field(factory=list)
 
-    def __call__(self, marginals: CliqueVector):
+    def __call__(self, marginals: CliqueVector) -> bool:
         if self._step == 0:
             header = "|".join([_pad(x, 12) for x in ["step", *self.loss_fns.keys()]])
             print(header)
             print("=" * len(header))
+        
+        loss_vals: dict[str, chex.Numeric] = {}
+        for key in self.loss_fns:
+            loss_vals[key] = self.loss_fns[key](marginals)
+
         if self._step % self.frequency == 0:
-            row = [self.loss_fns[key](marginals) for key in self.loss_fns]
+            row = [loss_vals[key] for key in loss_vals]
             self._logs.append([self._step] + row)
             padded_step = str(self._step) + " " * (9 - len(str(self._step)))
             print(padded_step, *[("%.6f" % v)[:6] for v in row], sep="   |   ")
         self._step += 1
+
+        self.history.append(loss_vals)
+        if len(self.history) > self.history_len:
+            self.history.popleft()
+        else:
+            return False
+
+        for key in loss_vals:
+            margin = self.margin_percent * loss_vals[key]
+            diff = self.history[0][key] - loss_vals[key]
+            if diff > margin:
+                return False
+        print("Stopping early due to lack of improvement (after", self._step, "iterations)")
+        return True
 
     @property
     def summary(self):

@@ -1,5 +1,5 @@
 import numpy as np
-from mbi import estimation, Dataset, Domain, LinearMeasurement
+from mbi import callbacks, estimation, marginal_oracles, Dataset, Domain, LinearMeasurement
 from scipy import sparse
 from scipy.cluster.hierarchy import DisjointSet
 import networkx as nx
@@ -25,7 +25,9 @@ def MST(data, epsilon, delta):
   data, log1, undo_compress_fn = compress_domain(data, log1)
   cliques = select(data, rho / 3.0, log1)
   log2 = measure(data, cliques, sigma)
-  est = estimation.mirror_descent(data.domain, log1+log2, iters=10000)
+  est = estimation.mirror_descent(data.domain, log1+log2, 
+    marginal_oracle=marginal_oracles.message_passing_stable, iters=10000,
+    callback_fn=callbacks.default(log1+log2, data))
   synth = est.synthetic_data()
   return undo_compress_fn(synth)
 
@@ -43,6 +45,7 @@ def measure(data, cliques, sigma, weights=None):
 
 
 def compress_domain(data, measurements):
+  print("Compressing Domain")
   supports = {}
   new_measurements = []
   for M in measurements:
@@ -68,12 +71,15 @@ def exponential_mechanism(q, eps, sensitivity, prng=np.random, monotonic=False):
   coef = 1.0 if monotonic else 0.5
   scores = coef * eps / sensitivity * q
   probas = np.exp(scores - logsumexp(scores))
+  np.nan_to_num(probas)
   return prng.choice(q.size, p=probas)
 
 
 def select(data, rho, measurement_log, cliques=[]):
 
-  est = estimation.mirror_descent(data.domain, measurement_log, iters=2500)
+  est = estimation.mirror_descent(data.domain, measurement_log, 
+    marginal_oracle=marginal_oracles.message_passing_stable, iters=2500,
+    callback_fn=callbacks.default(measurement_log, data))
 
   weights = {}
   candidates = list(itertools.combinations(data.domain.attrs, 2))
