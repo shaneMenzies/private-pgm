@@ -47,16 +47,21 @@ class Callback:
         self.history.append(loss_vals)
         if len(self.history) > self.history_len:
             self.history.popleft()
+			for key in loss_vals:
+		        margin = self.margin_percent * loss_vals[key]
+		        diff = self.history[0][key] - loss_vals[key]
+		        if diff > margin:
+		            return False
+			print("Stopping early due to lack of improvement (after", self._step, "iterations)")
+			row = [loss_vals[key] for key in loss_vals]
+		    self._logs.append([self._step] + row)
+		    padded_step = str(self._step) + " " * (9 - len(str(self._step)))
+		    print(padded_step, *[("%.6f" % v)[:6] for v in row], sep="   |   ")
+		    return True
         else:
             return False
 
-        for key in loss_vals:
-            margin = self.margin_percent * loss_vals[key]
-            diff = self.history[0][key] - loss_vals[key]
-            if diff > margin:
-                return False
-        print("Stopping early due to lack of improvement (after", self._step, "iterations)")
-        return True
+        
 
     @property
     def summary(self):
