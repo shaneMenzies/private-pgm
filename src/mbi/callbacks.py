@@ -21,10 +21,10 @@ class Callback:
     frequency: int = 50
     history_len: int = 25
     margin_percent: float = 1e-9
-    history: deque = deque()
 
     # Internal state
     _step: int = 0
+    _history: deque = attr.field(factory=deque)
     _logs: list = attr.field(factory=list)
 
     def __call__(self, marginals: CliqueVector) -> bool:
@@ -44,12 +44,12 @@ class Callback:
             print(padded_step, *[("%.6f" % v)[:6] for v in row], sep="   |   ")
         self._step += 1
 
-        self.history.append(loss_vals)
-        if len(self.history) > self.history_len:
-            self.history.popleft()
+        self._history.append(loss_vals)
+        if len(self._history) > self.history_len:
+            self._history.popleft()
             for key in loss_vals:
                 margin = self.margin_percent * loss_vals[key]
-                diff = self.history[0][key] - loss_vals[key]
+                diff = self._history[0][key] - loss_vals[key]
                 if diff > margin:
                     return False
             print("Stopping early due to lack of improvement (after", self._step, "iterations)")
