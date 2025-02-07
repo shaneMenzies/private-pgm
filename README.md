@@ -1,3 +1,5 @@
+# Fork of Private-PGM with customizations for running on TACC
+
 # Marginal-based estimation and inference for differential privacy
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5548533.svg)](https://doi.org/10.5281/zenodo.5548533)
