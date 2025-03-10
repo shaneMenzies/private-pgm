@@ -42,14 +42,6 @@ def downward_closure(Ws):
     return list(sorted(ans, key=len))
 
 
-def hypothetical_model_size(domain, cliques):
-    jtree, _ = junction_tree.make_junction_tree(domain, cliques)
-    maximal_cliques = junction_tree.maximal_cliques(jtree)
-    cells = sum(domain.size(cl) for cl in maximal_cliques)
-    size_mb = cells * 8 / 2**20
-    return size_mb
-
-
 def compile_workload(workload):
     weights = {cl: wt for (cl, wt) in workload}
     workload_cliques = weights.keys()
@@ -185,8 +177,7 @@ class AIM(Mechanism):
 
         print("Generating Data...")
         model = estimation.mirror_descent(
-            data.domain, measurements, iters=self.max_iters,
-            marginal_oracle=marginal_oracles.message_passing_stable
+            data.domain, measurements, iters=self.max_iters, potentials=potentials
         )
         synth = model.synthetic_data(rows=num_synth_rows)
 
@@ -246,6 +237,7 @@ if __name__ == "__main__":
     workload = list(itertools.combinations(data.domain, args.degree))
     workload = [cl for cl in workload if data.domain.size(cl) <= args.max_cells]
     if args.num_marginals is not None:
+        prng = np.random
         workload = [
             workload[i]
             for i in prng.choice(len(workload), args.num_marginals, replace=False)

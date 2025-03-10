@@ -40,7 +40,7 @@ def sum_product(factors: list[Factor], dom: Domain) -> Factor:
         dom: The target domain of the output factor.
 
     Returns:
-        sum_{S \ D} prod_i F_i,
+        sum_{S - D} prod_i F_i,
         where
             * F_i = factors[i]
             * D = dom
@@ -87,7 +87,7 @@ def logspace_sum_product(log_factors: list[Factor], dom: Domain) -> Factor:
         dom: The desired domain of the output factor.
 
     Returns:
-        log sum_{S \ D} prod_i exp(F_i),
+        log sum_{S - D} prod_i exp(F_i),
         where 
             * F_i = log_factors[i], 
             * D is the input domain,
@@ -225,6 +225,11 @@ def message_passing_fast(potentials: CliqueVector, total: float = 1) -> CliqueVe
         input_potentials = potential_mapping[i]
         input_messages = [messages[key] for key in incoming_messages[(i, j)]]
         inputs = input_potentials + input_messages
+
+        for attr in shared.attributes:
+            if not any(attr in input.domain.attributes for input in inputs):
+                inputs.append(Factor.zeros(domain.project([attr])))
+
         messages[(i, j)] = logspace_sum_product(inputs, shared)
 
     beliefs = {}
