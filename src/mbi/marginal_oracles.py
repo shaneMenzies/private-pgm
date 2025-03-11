@@ -47,16 +47,10 @@ def sum_product(factors: list[Factor], dom: Domain) -> Factor:
             * S = union of domains of F_i
     """
 
-    print("Computing sum of products of factors:", factors, " over domain: ", dom)
     attrs = sorted(set.union(*[set(f.domain) for f in factors]).union(set(dom)))
     mapping = dict(zip(attrs, _EINSUM_LETTERS))
-    print("Mapping from attributes to einsum letters:")
-    print(mapping)
     convert = lambda d: "".join(mapping[a] for a in d.attributes)
     formula = ",".join(convert(f.domain) for f in factors) + "->" + convert(dom)
-    print("Formula: ", formula)
-    print(len(factors), " Factors")
-    print(jnp.einsum_path(formula, *[f.values for f in factors]))
     values = jnp.einsum(
         formula,
         *[f.values for f in factors],
